@@ -23,6 +23,9 @@ inputs:
   labels:
     description: "A comma or newline separated list of labels."
     required: false
+  exclude-labels:
+    description: "A comma or newline separated list of inherited labels to exclude from the cherry pick PR"
+    required: false
   assignees:
     description: "A comma or newline separated list of assignees (GitHub usernames)."
     required: false
@@ -34,6 +37,16 @@ inputs:
       A comma or newline separated list of GitHub teams to request a review from.
       Note that a `repo` scoped Personal Access Token (PAT) may be required.
     required: false
+  title-prefix:
+    description: >
+      A prefix to the inherited title
+    required: false
+    default: ""
+  cherry-pick-repo:
+    description: >
+      A source repo for the cherry pick PRs
+    required: false
+    default: ${{ github.repository }}
 runs:
   using: node12
   main: dist/index.js

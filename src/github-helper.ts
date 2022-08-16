@@ -10,9 +10,12 @@ export interface Inputs {
   author: string
   branch: string
   labels: string[]
+  excludeLabels: string[]
   assignees: string[]
   reviewers: string[]
   teamReviewers: string[]
+  titlePrefix: string
+  cherryPickRepo: string
 }
 
 export async function createPullRequest(
@@ -22,13 +25,22 @@ export async function createPullRequest(
   const octokit = github.getOctokit(inputs.token)
   if (process.env.GITHUB_REPOSITORY !== undefined) {
     const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/')
+    const cherryPickRepoOwner = inputs.cherryPickRepo.split('/')[0]
 
     // Get PR title
     const title =
       github.context.payload &&
       github.context.payload.pull_request &&
       github.context.payload.pull_request.title
-    core.info(`Using body '${title}'`)
+
+    let prTitle
+    if (inputs.titlePrefix && inputs.titlePrefix !== '') {
+      prTitle = `${inputs.titlePrefix}${title}`
+    } else {
+      prTitle = title
+    }
+
+    core.info(`Using title '${prTitle}'`)
 
     // Get PR body
     const body =
@@ -41,9 +53,9 @@ export async function createPullRequest(
     const pull = await octokit.pulls.create({
       owner,
       repo,
-      head: prBranch,
+      head: `${cherryPickRepoOwner}:${prBranch}`,
       base: inputs.branch,
-      title,
+      title: prTitle,
       body
     })
 
@@ -56,7 +68,10 @@ export async function createPullRequest(
 
       if (prLabels) {
         for (const item of prLabels) {
-          if (item.name !== inputs.branch) {
+          if (
+            item.name !== inputs.branch &&
+            !inputs.excludeLabels.includes(item.name)
+          ) {
             inputs.labels.push(item.name)
           }
         }

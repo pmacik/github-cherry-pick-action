@@ -3,6 +3,7 @@ import * as io from '@actions/io'
 import * as exec from '@actions/exec'
 import * as utils from './utils'
 import {Inputs, createPullRequest} from './github-helper'
+import {v4 as uuidv4} from 'uuid'
 
 const CHERRYPICK_EMPTY =
   'The previous cherry-pick is now empty, possibly due to conflict resolution.'
@@ -15,15 +16,18 @@ export async function run(): Promise<void> {
       author: core.getInput('author'),
       branch: core.getInput('branch'),
       labels: utils.getInputAsArray('labels'),
+      excludeLabels: utils.getInputAsArray('exclude-labels'),
       assignees: utils.getInputAsArray('assignees'),
       reviewers: utils.getInputAsArray('reviewers'),
-      teamReviewers: utils.getInputAsArray('teamReviewers')
+      teamReviewers: utils.getInputAsArray('team-reviewers'),
+      titlePrefix: core.getInput('title-prefix', {trimWhitespace: false}),
+      cherryPickRepo: core.getInput('cherry-pick-repo')
     }
 
     core.info(`Cherry pick into branch ${inputs.branch}!`)
 
-    const githubSha = process.env.GITHUB_SHA
-    const prBranch = `cherry-pick-${inputs.branch}-${githubSha}`
+    const githubSha = process.env.GITHUB_SHA?.slice(0, 8)
+    const prBranch = `cherry-pick_${inputs.branch}_${githubSha}_${uuidv4()}`
 
     // Configure the committer and author
     core.startGroup('Configuring the committer and author')
@@ -38,6 +42,16 @@ export async function run(): Promise<void> {
       '--global',
       'user.email',
       parsedCommitter.email
+    ])
+    core.endGroup()
+
+    // Setup cherry-pick branch
+    core.startGroup('Setup cherry-pick branch remote')
+    await gitExecution([
+      'remote',
+      'add',
+      'cherrypick',
+      `git@github.com:${inputs.cherryPickRepo}.git`
     ])
     core.endGroup()
 
@@ -69,7 +83,7 @@ export async function run(): Promise<void> {
 
     // Push new branch
     core.startGroup('Push new branch to remote')
-    await gitExecution(['push', '-u', 'origin', `${prBranch}`])
+    await gitExecution(['push', '-u', 'cherrypick', `${prBranch}`])
     core.endGroup()
 
     // Create pull request
