@@ -247,6 +247,21 @@ function run() {
                 throw new Error(`Unexpected error: ${result.stderr}`);
             }
             core.endGroup();
+            // Setting original author for the cherry-picked commit
+            core.startGroup('Setting original author for the cherry-picked commit');
+            const origAuthor = yield gitExecution([
+                'show',
+                '-s',
+                '--format="%an <%ae>"',
+                `${githubSha}`
+            ]);
+            yield gitExecution([
+                'commit',
+                '--amend',
+                `--author=${origAuthor}`,
+                '--no-edit'
+            ]);
+            core.endGroup();
             // Push new branch
             core.startGroup('Push new branch to remote');
             yield gitExecution(['push', '-u', 'cherrypick', `${prBranch}`]);

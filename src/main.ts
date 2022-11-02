@@ -81,6 +81,22 @@ export async function run(): Promise<void> {
     }
     core.endGroup()
 
+    // Setting original author for the cherry-picked commit
+    core.startGroup('Setting original author for the cherry-picked commit')
+    const origAuthor = await gitExecution([
+      'show',
+      '-s',
+      '--format="%an <%ae>"',
+      `${githubSha}`
+    ])
+    await gitExecution([
+      'commit',
+      '--amend',
+      `--author=${origAuthor}`,
+      '--no-edit'
+    ])
+    core.endGroup()
+
     // Push new branch
     core.startGroup('Push new branch to remote')
     await gitExecution(['push', '-u', 'cherrypick', `${prBranch}`])
